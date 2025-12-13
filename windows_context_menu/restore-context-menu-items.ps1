@@ -4,11 +4,18 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$EnabledItems = @()
+
 function Enable-Key($path, $name) {
     if (-not $name.StartsWith("__DISABLED__")) { return }
-    $new = $name -replace '^__DISABLED__',''
-    Rename-Item -Path $path -NewName $new
-    Write-Host "Enabled: $new"
+    try {
+        $new = $name -replace '^__DISABLED__',''
+        Rename-Item -Path $path -NewName $new
+        Write-Host "  + Enabled: $new" -ForegroundColor Gray
+        $script:EnabledItems += $new
+    } catch {
+        Write-Host "Warning: Error enabling '$name': $_" -ForegroundColor Yellow
+    }
 }
 
 function Restart-Explorer {
@@ -30,6 +37,9 @@ $Roots = @(
     "Registry::HKEY_CLASSES_ROOT\.pptx"
 )
 
+Write-Host "Restoring context menu..." -ForegroundColor Cyan
+Write-Host ""
+
 foreach ($root in $Roots) {
     if (Test-Path $root) {
         Get-ChildItem -Recurse -ErrorAction SilentlyContinue $root |
@@ -41,4 +51,21 @@ foreach ($root in $Roots) {
 }
 
 Restart-Explorer
-Write-Host "DONE: context menu restored"
+
+Write-Host "========================================"
+Write-Host "DONE: Context menu restored" -ForegroundColor Green
+Write-Host "========================================"
+Write-Host ""
+
+if ($EnabledItems.Count -gt 0) {
+    Write-Host "Items restored:" -ForegroundColor Green
+    $EnabledItems | Sort-Object -Unique | ForEach-Object {
+        Write-Host "  * $_" -ForegroundColor Gray
+    }
+} else {
+    Write-Host "No items were changed." -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "Total: $($EnabledItems.Count) items enabled" -ForegroundColor Green
+Write-Host ""
